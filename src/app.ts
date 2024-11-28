@@ -1,24 +1,48 @@
-import express, { Request, Response } from "express";
+import express from "express";
 import * as dotenv from "dotenv";
 import cors from "cors";
 import helmet from "helmet";
+import mongoose from "mongoose";
+import cookieParser from "cookie-parser";
+import { auth } from "./auth/route";
+import { course } from "./course/route";
+import { user } from "./users/route";
+import { checkout } from "./checkout/route";
+import { useSwagger } from "../middleware/swagger";
+import { carousel } from "./carousel/route";
 
 dotenv.config();
 
 const app = express();
 
+const corsOptions = {
+  origin: "http://localhost:3000",
+  credentials: true,
+};
+
+app.use(cors(corsOptions));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
-app.use(cors());
 app.use(helmet());
+app.use(cookieParser());
+app.use(express.static("public"));
 
-app.use("/", (req: Request, res: Response) => {
-  let response = "Welcome to the API\n";
-  response = response + "<p>My name is Sorayut Chroenrit</p>";
-  res.send(response);
-});
+// Connect to MongoDB
+mongoose
+  .connect(process.env.MONGODB_URI!)
+  .then(() => console.log("Successfully connected to MongoDB"))
+  .catch((err) => console.error("Error connecting to MongoDB:", err));
 
-const PORT = process.env.PORT;
+// Routes
+app.use("/api/v1", course);
+app.use("/api/v1", user);
+app.use("/api/v1/auth", auth);
+app.use("/api/", checkout);
+app.use("/api/v1", carousel);
+
+useSwagger(app);
+
+const PORT = process.env.PORT || 50100;
 app.listen(PORT, () => {
-  console.log(`Server is listening on port ${PORT}`);
+  console.log(`Server is running on port ${PORT}`);
 });
