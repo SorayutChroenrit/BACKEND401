@@ -357,9 +357,7 @@ course.post(
           courseId: snowflake.generate().toString(),
           courseCode,
           location,
-          enrollmentLimit: enrollmentLimitNumber.toString(),
           courseDate,
-          hours,
         },
       });
 
@@ -658,17 +656,16 @@ course.post(
         updateFields.imageUrl = req.file.path;
       }
 
-      // Update the course
-      const updateResponse = await Course.updateOne(
-        { courseId },
-        { $set: updateFields }
-      );
+      // // Update the course
+      // const updateResponse = await Course.updateOne(
+      //   { courseId },
+      //   { $set: updateFields }
+      // );
 
       return res.status(200).json({
         code: "Success-01-0001",
         status: "Success",
         message: "Course updated successfully",
-        data: updateResponse,
       });
     } catch (error) {
       console.error("Error updating course:", error);
@@ -864,6 +861,7 @@ course.post("/registerCourse", verifyJWT, async (req, res) => {
       location: course.location,
       courseDate: course.courseDate,
       hours: course.hours,
+      courseImage: course.imageUrl,
     });
 
     course.currentEnrollment += 1;
@@ -931,7 +929,7 @@ course.post("/generateCode", verifyJWT, async (req: Request, res: Response) => {
       currentTime.getTime() + 7 * 60 * 60 * 1000 // Adjust to GMT+7
     );
 
-    // Debugging logs
+    // Debug logs
     // console.log("Current Time (UTC):", currentTime.toISOString());
     // console.log("Current Time (GMT+7):", currentTimeGMTPlus7.toISOString());
     // console.log("Course Start (UTC):", courseStartTime.toISOString());
@@ -964,7 +962,6 @@ course.post("/generateCode", verifyJWT, async (req: Request, res: Response) => {
           code: "Error-01-0006",
           status: "Error",
           message: "Code has already been generated for this course period.",
-          generatedCode,
         });
       }
     }
@@ -981,7 +978,6 @@ course.post("/generateCode", verifyJWT, async (req: Request, res: Response) => {
       code: "Success-01-0002",
       status: "Success",
       message: "Code generated and saved successfully.",
-      data: { generatedCode: newGeneratedCode },
     });
   } catch (error) {
     console.error("Error generating code:", error);
@@ -1382,7 +1378,6 @@ course.post("/action", verifyJWT, async (req, res) => {
         code: "Success-03-0003",
         status: "Success",
         message: "User rejected successfully.",
-        data: user, // Optionally include user data for tracking
       });
     }
 
@@ -1396,7 +1391,6 @@ course.post("/action", verifyJWT, async (req, res) => {
       code: `Success-03-000${action === "approve" ? "2" : "3"}`,
       status: "Success",
       message: `User ${action}d successfully.`,
-      data: user,
     });
   } catch (error) {
     console.error("Error processing action:", error);
