@@ -866,6 +866,16 @@ course.post("/registerCourse", verifyJWT, async (req, res) => {
 
     course.currentEnrollment += 1;
 
+    course.registeredUsers.push({
+      _id: user._id,
+      userId: user.userId,
+      name: user.name,
+      email: user.email,
+      phonenumber: user.phonenumber,
+      idcard: user.idcard,
+      company: user.company,
+    });
+
     await user.save();
     await course.save();
 
