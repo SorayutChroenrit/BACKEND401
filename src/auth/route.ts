@@ -446,6 +446,7 @@ auth.post("/reset-password", async (req, res) => {
     }
 
     let decoded;
+
     try {
       decoded = jwt.verify(token, process.env.JWT_SECRET!) as jwt.JwtPayload;
     } catch (err) {
@@ -457,7 +458,7 @@ auth.post("/reset-password", async (req, res) => {
       });
     }
 
-    const user = await User.findById(decoded.userId);
+    const user = await User.findOne({ userId: decoded.userId });
     if (!user) {
       return res.status(404).json({
         code: "Error-02-0003",

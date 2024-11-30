@@ -730,6 +730,162 @@ course.post(
  *         description: Internal server error.
  */
 
+/**
+ * @swagger
+ * /api/v1/registerCourse:
+ *   post:
+ *     summary: Register a user for a course
+ *     tags: [Courses]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               userId:
+ *                 type: string
+ *               courseId:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: Registered successfully.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 code:
+ *                   type: string
+ *                   example: Success-01-0002
+ *                 status:
+ *                   type: string
+ *                   example: Success
+ *                 message:
+ *                   type: string
+ *                   example: Registered successfully
+ *       400:
+ *         description: Missing required fields or registration closed.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 code:
+ *                   type: string
+ *                 status:
+ *                   type: string
+ *                 message:
+ *                   type: string
+ *       404:
+ *         description: User or course not found.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 code:
+ *                   type: string
+ *                 status:
+ *                   type: string
+ *                 message:
+ *                   type: string
+ *       500:
+ *         description: Internal server error.
+ */
+
+course.post("/registerCourse", verifyJWT, async (req, res) => {
+  const { userId, courseId } = req.body;
+
+  if (!userId || !courseId) {
+    return res.status(400).json({
+      code: "Error-02-0001",
+      status: "Error",
+      message: "User ID and Course ID are required",
+    });
+  }
+
+  try {
+    const course = await Course.findOne({ courseId });
+    if (!course) {
+      return res.status(404).json({
+        code: "Error-02-0002",
+        status: "Error",
+        message: "Course not found",
+      });
+    }
+
+    const user = await User.findOne({ userId });
+    if (!user) {
+      return res.status(404).json({
+        code: "Error-02-0003",
+        status: "Error",
+        message: "User not found",
+      });
+    }
+
+    const now = new Date();
+    const { startDate, endDate } = course.applicationPeriod || {};
+    if (
+      !startDate ||
+      !endDate ||
+      now < new Date(startDate) ||
+      now > new Date(endDate)
+    ) {
+      return res.status(400).json({
+        code: "Error-02-0004",
+        status: "Error",
+        message: "Registration is not open during this period",
+      });
+    }
+
+    if (user.trainingInfo.some((info) => info.courseId === courseId)) {
+      return res.status(400).json({
+        code: "Error-02-0005",
+        status: "Error",
+        message: "Course already registered",
+      });
+    }
+
+    if (course.currentEnrollment >= course.enrollmentLimit) {
+      return res.status(400).json({
+        code: "Error-02-0006",
+        status: "Error",
+        message: "Course is fully booked",
+      });
+    }
+
+    user.trainingInfo.push({
+      courseId: course.courseId,
+      courseName: course.courseName,
+      description: course.description,
+      location: course.location,
+      courseDate: course.courseDate,
+      hours: course.hours,
+    });
+
+    course.currentEnrollment += 1;
+
+    await user.save();
+    await course.save();
+
+    res.status(200).json({
+      code: "Success-01-0002",
+      status: "Success",
+      message: "Registered successfully",
+    });
+  } catch (error) {
+    console.error("Error during registration:", error);
+    res.status(500).json({
+      code: "Error-02-0007",
+      status: "Error",
+      message: "Internal server error",
+    });
+  }
+});
+
 course.post("/generateCode", verifyJWT, async (req: Request, res: Response) => {
   const { courseId } = req.body;
 

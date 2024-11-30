@@ -1,11 +1,13 @@
 import express, { Request, Response } from "express";
 import multer from "multer";
+import bcrypt from "bcrypt";
 import cloudinary from "cloudinary";
 import streamifier from "streamifier";
 import dotenv from "dotenv";
 import { User } from "./model";
 import { verifyJWT } from "../../middleware/middleware";
 import { Course } from "../course/model";
+import { v4 as uuidv4 } from "uuid";
 
 const moment = require("moment");
 
@@ -284,161 +286,7 @@ user.get("/users", verifyJWT, async (req: Request, res: Response) => {
   }
 });
 
-/**
- * @swagger
- * /api/v1/registerCourse:
- *   post:
- *     summary: Register a user for a course
- *     tags: [Courses]
- *     security:
- *       - bearerAuth: []
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             properties:
- *               userId:
- *                 type: string
- *               courseId:
- *                 type: string
- *     responses:
- *       200:
- *         description: Registered successfully.
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 code:
- *                   type: string
- *                   example: Success-01-0002
- *                 status:
- *                   type: string
- *                   example: Success
- *                 message:
- *                   type: string
- *                   example: Registered successfully
- *       400:
- *         description: Missing required fields or registration closed.
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 code:
- *                   type: string
- *                 status:
- *                   type: string
- *                 message:
- *                   type: string
- *       404:
- *         description: User or course not found.
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 code:
- *                   type: string
- *                 status:
- *                   type: string
- *                 message:
- *                   type: string
- *       500:
- *         description: Internal server error.
- */
 
-user.post("/registerCourse", verifyJWT, async (req, res) => {
-  const { userId, courseId } = req.body;
-
-  if (!userId || !courseId) {
-    return res.status(400).json({
-      code: "Error-02-0001",
-      status: "Error",
-      message: "User ID and Course ID are required",
-    });
-  }
-
-  try {
-    const course = await Course.findOne({ courseId });
-    if (!course) {
-      return res.status(404).json({
-        code: "Error-02-0002",
-        status: "Error",
-        message: "Course not found",
-      });
-    }
-
-    const user = await User.findOne({ userId });
-    if (!user) {
-      return res.status(404).json({
-        code: "Error-02-0003",
-        status: "Error",
-        message: "User not found",
-      });
-    }
-
-    const now = new Date();
-    const { startDate, endDate } = course.applicationPeriod || {};
-    if (
-      !startDate ||
-      !endDate ||
-      now < new Date(startDate) ||
-      now > new Date(endDate)
-    ) {
-      return res.status(400).json({
-        code: "Error-02-0004",
-        status: "Error",
-        message: "Registration is not open during this period",
-      });
-    }
-
-    if (user.trainingInfo.some((info) => info.courseId === courseId)) {
-      return res.status(400).json({
-        code: "Error-02-0005",
-        status: "Error",
-        message: "Course already registered",
-      });
-    }
-
-    if (course.currentEnrollment >= course.enrollmentLimit) {
-      return res.status(400).json({
-        code: "Error-02-0006",
-        status: "Error",
-        message: "Course is fully booked",
-      });
-    }
-
-    user.trainingInfo.push({
-      courseId: course.courseId,
-      courseName: course.courseName,
-      description: course.description,
-      location: course.location,
-      courseDate: course.courseDate,
-      hours: course.hours,
-    });
-
-    course.currentEnrollment += 1;
-
-    await user.save();
-    await course.save();
-
-    res.status(200).json({
-      code: "Success-01-0002",
-      status: "Success",
-      message: "Registered successfully",
-    });
-  } catch (error) {
-    console.error("Error during registration:", error);
-    res.status(500).json({
-      code: "Error-02-0007",
-      status: "Error",
-      message: "Internal server error",
-    });
-  }
-});
 
 /**
  * @swagger
@@ -621,3 +469,84 @@ user.post(
     }
   }
 );
+
+// Register Route
+user.post("/createAccount", async (req: Request, res: Response) => {
+  const contentType = req.headers["content-type"];
+
+  console.log(req.headers);
+  console.log(req.body);
+
+  if (!contentType || contentType !== "application/json") {
+    return res.status(401).json({
+      code: "Error-01-0001",
+      status: "Error",
+      message: "Invalid Header",
+    });
+  }
+
+  const { name, email, phonenumber, idcard, company, password } = req.body;
+
+  if (!name || !email || !phonenumber || !idcard || !company || !password) {
+    return res.status(400).json({
+      code: "Error-02-0001",
+      status: "Error",
+      message: "Missing required fields.",
+    });
+  }
+
+  try {
+    // Check if idcard, email, or phonenumber already exists
+    const existingUser = await User.findOne({
+      $or: [{ email }, { phonenumber }, { idcard }],
+    });
+
+    if (existingUser) {
+      let conflictField = "";
+
+      if (existingUser.email === email) {
+        conflictField = "email";
+      } else if (existingUser.phonenumber === phonenumber) {
+        conflictField = "phonenumber";
+      } else if (existingUser.idcard === idcard) {
+        conflictField = "idcard";
+      }
+
+      return res.status(400).json({
+        code: "Error-01-0002",
+        status: "Error",
+        message: `This ${conflictField} is already in use. Please check again`,
+      });
+    }
+
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    const userId = uuidv4();
+
+    const newUser = new User({
+      userId: userId,
+      name,
+      email,
+      phonenumber,
+      idcard,
+      company,
+      password: hashedPassword,
+      role: "user",
+      status: "Active",
+    });
+
+    await newUser.save();
+    res.status(200).json({
+      code: "Success-01-0001",
+      status: "ok",
+      message: "User registered successfully",
+    });
+  } catch (error) {
+    console.error("Error registering user:", error);
+    res.status(500).json({
+      code: "Error-01-0003",
+      status: "Error",
+      message: "Internal server error",
+    });
+  }
+});
