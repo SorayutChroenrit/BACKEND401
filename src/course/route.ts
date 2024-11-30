@@ -1300,7 +1300,7 @@ course.post("/action", verifyJWT, async (req, res) => {
   console.log(courseId);
   if (!userId || !courseId || !["approve", "reject"].includes(action)) {
     return res.status(400).json({
-      code: "Error-03-0009",
+      code: "Error-02-0001",
       status: "Error",
       message: "Invalid input or action. 'approve' or 'reject' is required.",
     });
@@ -1323,27 +1323,27 @@ course.post("/action", verifyJWT, async (req, res) => {
     if (action === "approve") {
       const now = new Date();
 
-      // Initialize status dates if not already set
+      // Initialize statusStartDate if not already set
       if (!user.statusStartDate) {
         user.statusStartDate = now;
-        user.statusEndDate = new Date(now);
-        user.statusEndDate.setFullYear(user.statusEndDate.getFullYear() + 1);
-      } else {
-        // Extend the statusEndDate by 1 year, but not beyond 2 years from statusStartDate
-        const maxEndDate = new Date(user.statusStartDate);
-        maxEndDate.setFullYear(maxEndDate.getFullYear() + 2);
-
-        if (!user.statusEndDate || user.statusEndDate < maxEndDate) {
-          // If statusEndDate is null/undefined, initialize it to now and extend by 1 year
-          user.statusEndDate = user.statusEndDate || new Date(now);
-          user.statusEndDate.setFullYear(user.statusEndDate.getFullYear() + 1);
-
-          // Ensure it doesn't exceed the maximum allowed date
-          if (user.statusEndDate > maxEndDate) {
-            user.statusEndDate = maxEndDate;
-          }
-        }
       }
+
+      // Ensure the statusEndDate is extended by 1 year or initialized
+      if (!user.statusEndDate) {
+        user.statusEndDate = new Date(now);
+      }
+
+      // Calculate the new potential end date
+      const newEndDate = new Date(user.statusEndDate);
+      newEndDate.setFullYear(newEndDate.getFullYear() + 1);
+
+      // Maximum allowed statusEndDate (2 years from statusStartDate)
+      const maxAllowedEndDate = new Date(user.statusStartDate);
+      maxAllowedEndDate.setFullYear(maxAllowedEndDate.getFullYear() + 2);
+
+      // Update statusEndDate to the smaller value between newEndDate and maxAllowedEndDate
+      user.statusEndDate =
+        newEndDate > maxAllowedEndDate ? maxAllowedEndDate : newEndDate;
 
       // Calculate remaining time for statusDuration and statusExpiration
       const diffTime = user.statusEndDate.getTime() - now.getTime();
@@ -1385,7 +1385,7 @@ course.post("/action", verifyJWT, async (req, res) => {
       );
 
       return res.status(200).json({
-        code: "Success-03-0003",
+        code: "Success-01-0001",
         status: "Success",
         message: "User rejected successfully.",
       });
