@@ -78,7 +78,7 @@ course.get("/courses", verifyJWT, async (req: Request, res: Response) => {
   try {
     const courses = await Course.find();
     res.status(200).json({
-      code: "Success-00-0001",
+      code: "Success-01-0001",
       status: "Success",
       message: "Courses retrieved successfully",
       data: courses,
@@ -86,7 +86,7 @@ course.get("/courses", verifyJWT, async (req: Request, res: Response) => {
   } catch (error) {
     console.error("Error retrieving courses:", error);
     res.status(500).json({
-      code: "Error-00-0001",
+      code: "Error-03-0001",
       status: "Error",
       message: "Internal server error while fetching courses",
     });
@@ -112,16 +112,16 @@ course.get(
       }
 
       res.status(200).json({
-        code: "Success-00-0001",
+        code: "Success-01-0001",
         status: "Success",
         message: "Course retrieved successfully",
         data: course,
       });
     } catch (error) {
       return res.status(500).json({
-        code: "Error-01-0006",
+        code: "Error-03-0001",
         status: "Error",
-        message: "Failed to retrieve course",
+        message: "Internal server error",
       });
     }
   }
@@ -394,7 +394,7 @@ course.post(
       await Course.collection.insertOne(courseData);
 
       const response = {
-        code: "Success-00-0001",
+        code: "Success-01-0001",
         status: "Success",
         message: "Course created successfully",
       };
@@ -403,9 +403,9 @@ course.post(
     } catch (error) {
       console.error("Error:", error);
       return res.status(500).json({
-        code: "Error-01-0005",
+        code: "Error-03-0001",
         status: "Error",
-        message: "Failed to create course",
+        message: "Internal server error",
       });
     }
   }
@@ -467,7 +467,7 @@ course.post("/verify-id", verifyJWT, async (req: Request, res: Response) => {
   }
 
   const { idcard } = req.body;
-  if (!idcard || typeof idcard !== "string") {
+  if (!idcard) {
     return res.status(400).json({
       code: "Error-01-0002",
       status: "Error",
@@ -476,9 +476,18 @@ course.post("/verify-id", verifyJWT, async (req: Request, res: Response) => {
   }
 
   try {
-    // Query the User database for the given ID card
-    const user = await User.findOne({ idcard });
+    // Extract user information from the JWT token (assuming verifyJWT middleware adds `req.user`)
+    const userFromToken = req.user; // Ensure `verifyJWT` adds user details to req.user
 
+    if (!userFromToken) {
+      return res.status(401).json({
+        code: "Error-01-0006",
+        status: "Error",
+        message: "Unauthorized access. User identity is missing.",
+      });
+    }
+    // Check if the ID card matches the authenticated user's ID card
+    const user = await User.findOne({ idcard });
     if (!user) {
       return res.status(404).json({
         code: "Error-01-0004",
@@ -487,7 +496,14 @@ course.post("/verify-id", verifyJWT, async (req: Request, res: Response) => {
       });
     }
 
-    // If user is found, respond with success
+    if (userFromToken.userId !== user.userId) {
+      return res.status(403).json({
+        code: "Error-01-0007",
+        status: "Error",
+        message: "The provided ID Card does not belong to you.",
+      });
+    }
+    // If the ID card matches the authenticated user
     res.status(200).json({
       code: "Success-01-0001",
       status: "Success",
@@ -496,7 +512,7 @@ course.post("/verify-id", verifyJWT, async (req: Request, res: Response) => {
   } catch (error) {
     console.error("Error during ID card verification:", error);
     res.status(500).json({
-      code: "Error-01-0005",
+      code: "Error-03-0001",
       status: "Error",
       message: "Internal server error.",
     });
@@ -887,7 +903,7 @@ course.post("/registerCourse", verifyJWT, async (req, res) => {
   } catch (error) {
     console.error("Error during registration:", error);
     res.status(500).json({
-      code: "Error-02-0007",
+      code: "Error-03-0001",
       status: "Error",
       message: "Internal server error",
     });
@@ -1141,9 +1157,9 @@ course.post("/validateCode", verifyJWT, async (req: Request, res: Response) => {
   } catch (error) {
     console.error("Error validating code:", error);
     res.status(500).json({
-      code: "Error-02-0005",
+      code: "Error-03-0001",
       status: "Error",
-      message: "An error occurred while validating the code.",
+      message: "Internal server error",
     });
   }
 });
@@ -1293,11 +1309,11 @@ course.get("/waitingList", verifyJWT, async (req: Request, res: Response) => {
  *       500:
  *         description: Internal server error.
  */
-
 course.post("/action", verifyJWT, async (req, res) => {
   const { userId, courseId, action } = req.body;
 
-  console.log(courseId);
+  console.log("Request Body:", req.body);
+
   if (!userId || !courseId || !["approve", "reject"].includes(action)) {
     return res.status(400).json({
       code: "Error-02-0001",
@@ -1307,11 +1323,12 @@ course.post("/action", verifyJWT, async (req, res) => {
   }
 
   try {
-    const user = await User.findOne({ userId });
-    const course = await Course.findOne({ courseId });
+    // Find user and course
+    const user = await User.findOne({ userId }).exec();
+    const course = await Course.findOne({ courseId }).exec();
 
-    // console.log(user);
-    console.log(course);
+    console.log("User Found:", user);
+    console.log("Course Found:", course);
 
     if (!user || !course) {
       return res.status(404).json({
@@ -1320,92 +1337,104 @@ course.post("/action", verifyJWT, async (req, res) => {
         message: "User or course not found.",
       });
     }
-    if (action === "approve") {
-      const now = new Date();
 
-      // Initialize statusStartDate if not already set
-      if (!user.statusStartDate) {
-        user.statusStartDate = now;
-      }
-
-      // Ensure the statusEndDate is extended by 1 year or initialized
-      if (!user.statusEndDate) {
-        user.statusEndDate = new Date(now);
-      }
-
-      // Calculate the new potential end date
-      const newEndDate = new Date(user.statusEndDate);
-      newEndDate.setFullYear(newEndDate.getFullYear() + 1);
-
-      // Maximum allowed statusEndDate (2 years from statusStartDate)
-      const maxAllowedEndDate = new Date(user.statusStartDate);
-      maxAllowedEndDate.setFullYear(maxAllowedEndDate.getFullYear() + 2);
-
-      // Update statusEndDate to the smaller value between newEndDate and maxAllowedEndDate
-      user.statusEndDate =
-        newEndDate > maxAllowedEndDate ? maxAllowedEndDate : newEndDate;
-
-      // Calculate remaining time for statusDuration and statusExpiration
-      const diffTime = user.statusEndDate.getTime() - now.getTime();
-      const diffDate = new Date(diffTime);
-      const remainingYears = diffDate.getUTCFullYear() - 1970;
-      const remainingMonths = diffDate.getUTCMonth();
-      const remainingDays = diffDate.getUTCDate() - 1;
-
-      const statusDuration = `${remainingYears} ปี ${remainingMonths} เดือน ${remainingDays} วัน`;
-      const statusExpiration = statusDuration;
-
-      user.statusDuration = statusDuration;
-      user.statusExpiration = statusExpiration;
-
-      // Add to trainingInfo if not already added
-      const courseExists = user.trainingInfo.some(
-        (info) => info.courseId === courseId
-      );
-
-      if (!courseExists) {
-        user.trainingInfo.push({
-          _id: course._id,
-          courseId: courseId,
-          courseName: course.courseName,
-          description: course.description,
-          location: course.location,
-          hours: course.hours,
-          courseImage: course.courseImage,
-          courseDate: course.courseDate,
-        });
-      }
-
-      await user.save();
-    } else if (action === "reject") {
-      // Simply remove the user from the waiting list
-      await Course.updateOne(
+    if (action === "reject") {
+      // Handle "reject" action
+      const updateResult = await Course.updateOne(
         { courseId: courseId },
         { $pull: { waitingForApproveList: { userId } } }
       );
+
+      console.log("Reject Update Result:", updateResult);
 
       return res.status(200).json({
         code: "Success-01-0001",
         status: "Success",
         message: "User rejected successfully.",
       });
+    } else if (action === "approve") {
+      const now = new Date();
+
+      // Initialize `statusStartDate` if not set
+      if (!user.statusStartDate) {
+        user.statusStartDate = now;
+
+        // Set `statusEndDate` to 2 years from `statusStartDate`
+        const initialEndDate = new Date(user.statusStartDate);
+        initialEndDate.setFullYear(initialEndDate.getFullYear() + 2);
+        user.statusEndDate = initialEndDate;
+      } else {
+        const maxAllowedEndDate = new Date(user.statusStartDate);
+        maxAllowedEndDate.setFullYear(maxAllowedEndDate.getFullYear() + 2); // Maximum allowed date: 2 years
+
+        let currentEndDate = user.statusEndDate
+          ? new Date(user.statusEndDate)
+          : new Date(user.statusStartDate);
+
+        if (currentEndDate <= now) {
+          // If expired, reset to 1 year from now or cap at maxAllowedEndDate
+          currentEndDate = new Date(now);
+          currentEndDate.setFullYear(currentEndDate.getFullYear() + 1);
+
+          // Cap at max allowed
+          if (currentEndDate > maxAllowedEndDate) {
+            currentEndDate = maxAllowedEndDate;
+          }
+        } else {
+          // Add proportional time
+          const remainingTime =
+            maxAllowedEndDate.getTime() - currentEndDate.getTime();
+          const oneYearInMs = 365 * 24 * 60 * 60 * 1000;
+
+          if (remainingTime >= oneYearInMs) {
+            // If reduced by 1 year or more, add back 1 year
+            currentEndDate.setFullYear(currentEndDate.getFullYear() + 1);
+          } else {
+            // Add proportional time (less than 1 year)
+            const remainingDuration = new Date(remainingTime);
+            const addMonths = remainingDuration.getUTCMonth();
+            const addDays = remainingDuration.getUTCDate() - 1;
+
+            currentEndDate.setMonth(currentEndDate.getMonth() + addMonths);
+            currentEndDate.setDate(currentEndDate.getDate() + addDays);
+          }
+        }
+
+        // Cap the `statusEndDate` at `statusStartDate + 2 years`
+        user.statusEndDate =
+          currentEndDate > maxAllowedEndDate
+            ? maxAllowedEndDate
+            : currentEndDate;
+      }
+
+      // Calculate `statusDuration` and expiration
+      const diffTime = user.statusEndDate.getTime() - now.getTime();
+      if (diffTime > 0) {
+        const diffDate = new Date(diffTime);
+        const remainingYears = diffDate.getUTCFullYear() - 1970;
+        const remainingMonths = diffDate.getUTCMonth();
+        const remainingDays = diffDate.getUTCDate() - 1;
+
+        user.statusDuration = `${remainingYears} ปี ${remainingMonths} เดือน ${remainingDays} วัน`;
+        user.statusExpiration = `${remainingYears} ปี ${remainingMonths} เดือน ${remainingDays} วัน`;
+      } else {
+        user.statusDuration = `0 ปี 0 เดือน 0 วัน`;
+        user.statusExpiration = `0 ปี 0 เดือน 0 วัน`;
+      }
+
+      const saveResult = await user.save();
+      console.log("User Save Result:", saveResult);
+
+      return res.status(200).json({
+        code: "Success-03-0002",
+        status: "Success",
+        message: "User approved successfully.",
+      });
     }
-
-    // Remove the user from the waiting list (for both actions)
-    await Course.updateOne(
-      { courseId: courseId },
-      { $pull: { waitingForApproveList: { userId } } }
-    );
-
-    res.status(200).json({
-      code: `Success-03-000${action === "approve" ? "2" : "3"}`,
-      status: "Success",
-      message: `User ${action}d successfully.`,
-    });
   } catch (error) {
     console.error("Error processing action:", error);
 
-    res.status(500).json({
+    return res.status(500).json({
       code: "Error-03-0011",
       status: "Error",
       message: "An error occurred.",

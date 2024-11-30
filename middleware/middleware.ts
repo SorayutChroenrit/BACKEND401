@@ -42,9 +42,9 @@ export function verifyJWT(req: Request, res: Response, next: NextFunction) {
   } catch (error) {
     console.error("Error handling request:", error);
     res.status(500).json({
-      code: "Error-01-0003",
+      code: "Error-03-0001",
       status: "Error",
-      message: "Internal server error during token verification.",
+      message: "Internal server error.",
     });
   }
 }

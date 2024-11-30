@@ -105,7 +105,7 @@ auth.post("/register", async (req: Request, res: Response) => {
       }
 
       return res.status(400).json({
-        code: "Error-01-0002",
+        code: "Error-02-0002",
         status: "Error",
         message: `This ${conflictField} is already in use. Please check again`,
       });
@@ -128,15 +128,16 @@ auth.post("/register", async (req: Request, res: Response) => {
     });
 
     await newUser.save();
+
     res.status(200).json({
       code: "Success-01-0001",
-      status: "ok",
+      status: "Success",
       message: "User registered successfully",
     });
   } catch (error) {
     console.error("Error registering user:", error);
     res.status(500).json({
-      code: "Error-01-0003",
+      code: "Error-03-0001",
       status: "Error",
       message: "Internal server error",
     });
@@ -242,7 +243,7 @@ auth.post("/login", async (req: Request, res: Response) => {
   } catch (error) {
     console.error("Error during login:", error);
     res.status(500).json({
-      code: "Error-01-0003",
+      code: "Error-03-0001",
       status: "Error",
       message: "Internal server error.",
     });
@@ -292,7 +293,7 @@ auth.post("/auth/logout", verifyJWT, (req, res) => {
   } catch (error) {
     console.error("Error during logout:", error);
     res.status(500).json({
-      code: "Error-01-0003",
+      code: "Error-03-0001",
       status: "Error",
       message: "Internal server error.",
     });
@@ -365,7 +366,7 @@ auth.post("/forgot-password", async (req, res) => {
     const resetToken = jwt.sign(
       { userId: user.userId, email: user.email, role: user.role },
       process.env.JWT_SECRET!,
-      { expiresIn: "1h" }
+      { expiresIn: "5m" }
     );
 
     const resetUrl = `${process.env.FRONTEND_URL}/reset-password?token=${resetToken}`;
@@ -383,7 +384,7 @@ auth.post("/forgot-password", async (req, res) => {
     });
   } catch (error) {
     res.status(500).json({
-      code: "Error-01-0003",
+      code: "Error-03-0001",
       status: "Error",
       message: "Internal server error during password reset.",
     });
@@ -478,7 +479,7 @@ auth.post("/auth/reset-password", async (req, res) => {
   } catch (error) {
     console.error("Error resetting password:", error);
     return res.status(500).json({
-      code: "Error-01-0003",
+      code: "Error-03-0001",
       status: "Error",
       message: "Internal server error. Please try again later.",
     });

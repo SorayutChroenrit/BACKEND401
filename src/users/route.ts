@@ -6,7 +6,6 @@ import streamifier from "streamifier";
 import dotenv from "dotenv";
 import { User } from "./model";
 import { verifyJWT } from "../../middleware/middleware";
-import { Course } from "../course/model";
 import { v4 as uuidv4 } from "uuid";
 
 const moment = require("moment");
@@ -121,7 +120,7 @@ user.get("/user", verifyJWT, async (req: Request, res: Response) => {
   } catch (error) {
     console.error("Error fetching user data:", error);
     res.status(500).json({
-      code: "Error-01-0003",
+      code: "Error-03-0001",
       status: "Error",
       message: "Internal server error",
     });
@@ -219,7 +218,7 @@ user.get("/users/:userId", verifyJWT, async (req: Request, res: Response) => {
   } catch (error) {
     console.error("Error fetching user data:", error);
     res.status(500).json({
-      code: "Error-01-0003",
+      code: "Error-03-0001",
       status: "Error",
       message: "Internal server error",
     });
@@ -271,7 +270,7 @@ user.get("/users", verifyJWT, async (req: Request, res: Response) => {
   try {
     const users = await User.find();
     return res.status(200).json({
-      code: "Success-01-0002",
+      code: "Success-01-0001",
       status: "Success",
       message: "Users retrieved successfully",
       data: users,
@@ -285,8 +284,6 @@ user.get("/users", verifyJWT, async (req: Request, res: Response) => {
     });
   }
 });
-
-
 
 /**
  * @swagger
@@ -455,7 +452,7 @@ user.post(
       }
 
       return res.status(200).json({
-        code: "Success-02-0001",
+        code: "Success-01-0003",
         status: "Success",
         message: "User updated successfully",
       });
@@ -537,14 +534,14 @@ user.post("/createAccount", async (req: Request, res: Response) => {
 
     await newUser.save();
     res.status(200).json({
-      code: "Success-01-0001",
+      code: "Success-01-0002",
       status: "ok",
       message: "User registered successfully",
     });
   } catch (error) {
     console.error("Error registering user:", error);
     res.status(500).json({
-      code: "Error-01-0003",
+      code: "Error-03-0001",
       status: "Error",
       message: "Internal server error",
     });
