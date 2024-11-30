@@ -21,7 +21,7 @@ const transporter = nodemailer.createTransport({
 
 /**
  * @swagger
- * /api/v1/auth/register:
+ * /api/v1/register:
  *   post:
  *     summary: Register a new user
  *     tags: [Auth]
@@ -145,7 +145,7 @@ auth.post("/register", async (req: Request, res: Response) => {
 
 /**
  * @swagger
- * /api/v1/auth/login:
+ * /api/v1/login:
  *   post:
  *     summary: User login
  *     tags: [Auth]
@@ -267,7 +267,7 @@ auth.post("/login", async (req: Request, res: Response) => {
  */
 
 // Logout Route
-auth.post("/logout", verifyJWT, (req, res) => {
+auth.post("/auth/logout", verifyJWT, (req, res) => {
   const contentType = req.headers["content-type"];
   // Validate content type
   if (!contentType || contentType !== "application/json") {
@@ -301,7 +301,7 @@ auth.post("/logout", verifyJWT, (req, res) => {
 
 /**
  * @swagger
- * /api/v1/auth/forgot-password:
+ * /api/v1/forgot-password:
  *   post:
  *     summary: Request password reset
  *     tags: [Auth]
@@ -382,7 +382,6 @@ auth.post("/forgot-password", async (req, res) => {
       message: "Password reset email sent.",
     });
   } catch (error) {
-    console.error("Error in forgot-password route:", error);
     res.status(500).json({
       code: "Error-01-0003",
       status: "Error",
@@ -423,7 +422,7 @@ auth.post("/forgot-password", async (req, res) => {
  */
 
 // Reset Password Route
-auth.post("/reset-password", async (req, res) => {
+auth.post("/auth/reset-password", async (req, res) => {
   const contentType = req.headers["content-type"];
 
   if (!contentType || contentType !== "application/json") {

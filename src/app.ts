@@ -36,7 +36,7 @@ mongoose
 // Routes
 app.use("/api/v1", course);
 app.use("/api/v1", user);
-app.use("/api/v1/auth", auth);
+app.use("/api/v1", auth);
 app.use("/api/", checkout);
 app.use("/api/v1", carousel);
 
