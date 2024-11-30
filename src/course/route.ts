@@ -93,6 +93,40 @@ course.get("/courses", verifyJWT, async (req: Request, res: Response) => {
   }
 });
 
+// find course by id
+course.get(
+  "/courses/:courseId",
+  verifyJWT,
+  async (req: Request, res: Response) => {
+    try {
+      const { courseId } = req.params;
+      // console.log("Fetching courseId:", courseId);
+      const course = await Course.findOne({ courseId });
+
+      if (!course) {
+        return res.status(404).json({
+          code: "Error-01-0007",
+          status: "Error",
+          message: "Course not found",
+        });
+      }
+
+      res.status(200).json({
+        code: "Success-00-0001",
+        status: "Success",
+        message: "Course retrieved successfully",
+        data: course,
+      });
+    } catch (error) {
+      return res.status(500).json({
+        code: "Error-01-0006",
+        status: "Error",
+        message: "Failed to retrieve course",
+      });
+    }
+  }
+);
+
 /**
  * @swagger
  * /api/v1/createCourse:
@@ -171,9 +205,12 @@ course.post(
   verifyJWT,
   upload.single("courseImage"),
   async (req: MulterRequest, res: Response) => {
+    console.log("Headers:", req.headers);
+    console.log("Body:", req.body);
+    console.log("File:", req.file);
+
     const contentType = req.headers["content-type"];
 
-    console.log(req.headers);
     // Check for valid content type
     if (!contentType || !contentType.includes("multipart/form-data")) {
       return res.status(400).json({

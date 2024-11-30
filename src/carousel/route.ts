@@ -232,7 +232,6 @@ carousel.post(
         code: "Success-01-0001",
         status: "Success",
         message: "Carousel created successfully.",
-        // data: { imageUrl: uploadResponse.secure_url },
       };
       return res.status(200).json(response);
     } catch (error) {
