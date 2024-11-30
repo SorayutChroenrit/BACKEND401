@@ -18,6 +18,7 @@ const userSchema = new mongoose.Schema({
       location: String,
       courseImage: String,
       courseDate: Date,
+      hours: Number,
     },
   ],
   statusStartDate: { type: Date },

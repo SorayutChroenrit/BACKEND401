@@ -6,7 +6,12 @@ import dotenv from "dotenv";
 import { User } from "./model";
 import { verifyJWT } from "../../middleware/middleware";
 import { Course } from "../course/model";
+
 const moment = require("moment");
+
+interface MulterRequest extends Request {
+  file?: Express.Multer.File;
+}
 
 dotenv.config();
 
@@ -20,15 +25,77 @@ cloudinary.v2.config({
   api_secret: process.env.CLOUDINARY_API_SECRET,
 });
 
+/**
+ * @swagger
+ * /api/v1/user:
+ *   get:
+ *     summary: Retrieve user details
+ *     tags: [User]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: User retrieved successfully.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 code:
+ *                   type: string
+ *                   example: Success-01-0001
+ *                 status:
+ *                   type: string
+ *                   example: Success
+ *                 message:
+ *                   type: string
+ *                   example: User retrieved successfully
+ *                 data:
+ *                   type: object
+ *       400:
+ *         description: Invalid user ID in token.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 code:
+ *                   type: string
+ *                   example: Error-01-0001
+ *                 status:
+ *                   type: string
+ *                   example: Error
+ *                 message:
+ *                   type: string
+ *                   example: Invalid user ID in token.
+ *       404:
+ *         description: User not found.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 code:
+ *                   type: string
+ *                   example: Error-01-0002
+ *                 status:
+ *                   type: string
+ *                   example: Error
+ *                 message:
+ *                   type: string
+ *                   example: User not found.
+ *       500:
+ *         description: Internal server error.
+ */
+
 user.get("/user", verifyJWT, async (req: Request, res: Response) => {
   try {
-    const userId = req.user?.userId; // This will now correctly retrieve the `userId` from the token
-    // console.log("Decoded userId:", userId);
+    const userId = req.user?.userId;
 
     if (!userId) {
       return res.status(400).json({
-        code: "ERROR-00-0003",
-        status: "error",
+        code: "Error-01-0001",
+        status: "Error",
         message: "Invalid user ID in token",
       });
     }
@@ -37,28 +104,87 @@ user.get("/user", verifyJWT, async (req: Request, res: Response) => {
 
     if (!user) {
       return res.status(404).json({
-        code: "ERROR-00-0004",
-        status: "error",
+        code: "Error-01-0002",
+        status: "Error",
         message: "User not found",
       });
     }
-    // console.log(user);
 
     return res.status(200).json({
-      code: "Success-00-0001",
+      code: "Success-01-0001",
       status: "Success",
-      data: user,
       message: "User retrieved successfully",
+      data: user,
     });
   } catch (error) {
     console.error("Error fetching user data:", error);
     res.status(500).json({
-      code: "ERROR-00-0005",
-      status: "error",
+      code: "Error-01-0003",
+      status: "Error",
       message: "Internal server error",
     });
   }
 });
+/**
+ * @swagger
+ * /api/v1/users/{userId}:
+ *   get:
+ *     summary: Retrieve a user by ID
+ *     tags: [User]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - name: userId
+ *         in: path
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: The ID of the user to retrieve
+ *     responses:
+ *       200:
+ *         description: User retrieved successfully.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 code:
+ *                   type: string
+ *                 status:
+ *                   type: string
+ *                 message:
+ *                   type: string
+ *                 data:
+ *                   type: object
+ *       400:
+ *         description: User ID is required.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 code:
+ *                   type: string
+ *                 status:
+ *                   type: string
+ *                 message:
+ *                   type: string
+ *       404:
+ *         description: User not found.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 code:
+ *                   type: string
+ *                 status:
+ *                   type: string
+ *                 message:
+ *                   type: string
+ *       500:
+ *         description: Internal server error.
+ */
 
 user.get("/users/:userId", verifyJWT, async (req: Request, res: Response) => {
   try {
@@ -66,9 +192,9 @@ user.get("/users/:userId", verifyJWT, async (req: Request, res: Response) => {
 
     if (!userId) {
       return res.status(400).json({
-        code: "ERROR-00-0003",
-        status: "error",
-        message: "Invalida no user ID",
+        code: "Error-01-0001",
+        status: "Error",
+        message: "User ID is required",
       });
     }
 
@@ -76,62 +202,157 @@ user.get("/users/:userId", verifyJWT, async (req: Request, res: Response) => {
 
     if (!user) {
       return res.status(404).json({
-        code: "ERROR-00-0004",
-        status: "error",
+        code: "Error-01-0002",
+        status: "Error",
         message: "User not found",
       });
     }
-    // console.log(user);
 
     return res.status(200).json({
-      code: "Success-00-0001",
+      code: "Success-01-0001",
       status: "Success",
-      data: user,
       message: "User retrieved successfully",
+      data: user,
     });
   } catch (error) {
     console.error("Error fetching user data:", error);
     res.status(500).json({
-      code: "ERROR-00-0005",
-      status: "error",
+      code: "Error-01-0003",
+      status: "Error",
       message: "Internal server error",
     });
   }
 });
 
-user.get("/users", verifyJWT, async (req, res) => {
+/**
+ * @swagger
+ * /api/v1/users:
+ *   get:
+ *     summary: Retrieve all users
+ *     tags: [User]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Users retrieved successfully.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 code:
+ *                   type: string
+ *                 status:
+ *                   type: string
+ *                 message:
+ *                   type: string
+ *                 data:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *       500:
+ *         description: Failed to retrieve users.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 code:
+ *                   type: string
+ *                 status:
+ *                   type: string
+ *                 message:
+ *                   type: string
+ */
+
+user.get("/users", verifyJWT, async (req: Request, res: Response) => {
   try {
-    const courses = await User.find();
+    const users = await User.find();
     return res.status(200).json({
-      code: "Success-00-0001",
-      status: "ok",
-      data: courses,
-      message: "User retrieved successfully",
+      code: "Success-01-0002",
+      status: "Success",
+      message: "Users retrieved successfully",
+      data: users,
     });
   } catch (error) {
-    return res.status(500).json({
-      code: "Error-01-0006",
+    console.error("Error fetching users:", error);
+    res.status(500).json({
+      code: "Error-01-0004",
       status: "Error",
-      message: "Failed to retrieve courses",
+      message: "Failed to retrieve users",
     });
   }
 });
 
+/**
+ * @swagger
+ * /api/v1/registerCourse:
+ *   post:
+ *     summary: Register a user for a course
+ *     tags: [Courses]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               userId:
+ *                 type: string
+ *               courseId:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: Registered successfully.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 code:
+ *                   type: string
+ *                   example: Success-01-0002
+ *                 status:
+ *                   type: string
+ *                   example: Success
+ *                 message:
+ *                   type: string
+ *                   example: Registered successfully
+ *       400:
+ *         description: Missing required fields or registration closed.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 code:
+ *                   type: string
+ *                 status:
+ *                   type: string
+ *                 message:
+ *                   type: string
+ *       404:
+ *         description: User or course not found.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 code:
+ *                   type: string
+ *                 status:
+ *                   type: string
+ *                 message:
+ *                   type: string
+ *       500:
+ *         description: Internal server error.
+ */
+
 user.post("/registerCourse", verifyJWT, async (req, res) => {
-  const contentType = req.headers["content-type"];
-
-  // Validate content type
-  if (!contentType || contentType !== "application/json") {
-    return res.status(400).json({
-      code: "Error-01-0001",
-      status: "Error",
-      message: "Invalid Headers",
-    });
-  }
-
   const { userId, courseId } = req.body;
 
-  // Validate input data
   if (!userId || !courseId) {
     return res.status(400).json({
       code: "Error-02-0001",
@@ -141,7 +362,6 @@ user.post("/registerCourse", verifyJWT, async (req, res) => {
   }
 
   try {
-    // Fetch course and user
     const course = await Course.findOne({ courseId });
     if (!course) {
       return res.status(404).json({
@@ -160,162 +380,241 @@ user.post("/registerCourse", verifyJWT, async (req, res) => {
       });
     }
 
-    // Validate application period
     const now = new Date();
     const { startDate, endDate } = course.applicationPeriod || {};
-    if (!startDate || !endDate) {
+    if (
+      !startDate ||
+      !endDate ||
+      now < new Date(startDate) ||
+      now > new Date(endDate)
+    ) {
       return res.status(400).json({
         code: "Error-02-0004",
-        status: "Error",
-        message: "Application period is not defined for this course",
-      });
-    }
-
-    if (now < new Date(startDate) || now > new Date(endDate)) {
-      return res.status(400).json({
-        code: "Error-02-0005",
         status: "Error",
         message: "Registration is not open during this period",
       });
     }
 
-    // Check for duplicate registration
     if (user.trainingInfo.some((info) => info.courseId === courseId)) {
       return res.status(400).json({
-        code: "Error-02-0006",
+        code: "Error-02-0005",
         status: "Error",
         message: "Course already registered",
       });
     }
 
-    // Check for conflicting dates
-    const isConflicting = user.trainingInfo.some((info) => {
-      if (!info.courseDate) return false;
-      return (
-        new Date(info.courseDate).getTime() ===
-        new Date(course.courseDate).getTime()
-      );
-    });
-
-    if (isConflicting) {
-      return res.status(400).json({
-        code: "Error-02-0007",
-        status: "Error",
-        message: "A course is already scheduled for this date and time",
-      });
-    }
-
-    // Check seat availability
     if (course.currentEnrollment >= course.enrollmentLimit) {
       return res.status(400).json({
-        code: "Error-02-0008",
+        code: "Error-02-0006",
         status: "Error",
         message: "Course is fully booked",
       });
     }
 
-    // Register user for the course
     user.trainingInfo.push({
-      _id: course._id,
       courseId: course.courseId,
       courseName: course.courseName,
       description: course.description,
       location: course.location,
-      courseImage: course.imageUrl,
       courseDate: course.courseDate,
+      hours: course.hours,
     });
 
-    // Increment course's current enrollment
     course.currentEnrollment += 1;
-    course.registeredUsers.push({
-      _id: user._id,
-      userId: user.userId,
-      name: user.name,
-      email: user.email,
-      phonenumber: user.phonenumber,
-      idcard: user.idcard,
-      company: user.company,
-    });
 
     await user.save();
     await course.save();
 
-    // Respond with updated data
     res.status(200).json({
-      code: "Success-01-0001",
-      status: "ok",
-      message: "Register successfully",
+      code: "Success-01-0002",
+      status: "Success",
+      message: "Registered successfully",
     });
   } catch (error) {
-    console.error("Error updating training info:", error);
+    console.error("Error during registration:", error);
     res.status(500).json({
-      code: "Error-02-0009",
+      code: "Error-02-0007",
       status: "Error",
       message: "Internal server error",
     });
   }
 });
 
+/**
+ * @swagger
+ * /api/v1/user/updateUser:
+ *   post:
+ *     summary: Update a user's details
+ *     tags: [User]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         multipart/form-data:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               userId:
+ *                 type: string
+ *                 description: The ID of the user to update
+ *               Avatar:
+ *                 type: string
+ *                 format: binary
+ *                 description: The avatar image file
+ *               otherFields:
+ *                 type: object
+ *                 additionalProperties:
+ *                   type: string
+ *     responses:
+ *       200:
+ *         description: User updated successfully.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 code:
+ *                   type: string
+ *                 status:
+ *                   type: string
+ *                 message:
+ *                   type: string
+ *                 data:
+ *                   type: object
+ *       400:
+ *         description: User ID is required.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 code:
+ *                   type: string
+ *                 status:
+ *                   type: string
+ *                 message:
+ *                   type: string
+ *       404:
+ *         description: User not found.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 code:
+ *                   type: string
+ *                 status:
+ *                   type: string
+ *                 message:
+ *                   type: string
+ *       500:
+ *         description: Failed to update user.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 code:
+ *                   type: string
+ *                 status:
+ *                   type: string
+ *                 message:
+ *                   type: string
+ */
+
 user.post(
   "/user/updateUser",
-  upload.single("Avatar"),
-  async (req: Request, res: Response) => {
-    const contentType = req.headers["content-type"];
+  verifyJWT,
+  upload.single("avatar"),
+  async (req: MulterRequest, res: Response) => {
+    // Log headers to confirm content type
+    console.log("Headers:", req.headers);
 
-    // Check for valid content type
-    if (!contentType || contentType !== "application/json") {
-      return res.status(400).json({
-        code: "Error-01-0001",
-        status: "Error",
-        message: "Invalid Headers",
-      });
-    }
-    // console.log("Headers:", req.headers);
-    // console.log("Body:", req.body);
-    // console.log("File:", req.file);
-
-    const { userId, ...updateFields } = req.body;
+    // Log body and file to inspect incoming data
+    console.log("Body:", req.body);
+    console.log("File:", req.file);
 
     try {
-      // Validate `userId`
+      const { userId, ...updateFields } = req.body;
+
       if (!userId) {
+        console.log("Missing userId");
         return res.status(400).json({
-          code: "Error-01-0004",
+          code: "Error-02-0002",
           status: "Error",
           message: "User ID is required",
         });
       }
 
-      // Update course in the database
       const user = await User.findOne({ userId });
       if (!user) {
+        console.log("User not found:", userId);
         return res.status(404).json({
-          code: "Error-01-0002",
+          code: "Error-02-0003",
           status: "Error",
           message: "User not found",
         });
       }
 
-      // If an image is uploaded, handle it (e.g., upload to Cloudinary)
       if (req.file) {
-        updateFields.imageUrl = req.file.path;
+        try {
+          const stream = streamifier.createReadStream(req.file.buffer);
+          const uploadResponse = await new Promise<any>((resolve, reject) => {
+            const uploadStream = cloudinary.v2.uploader.upload_stream(
+              {
+                resource_type: "image",
+                public_id: `${userId}_avatar`,
+                folder: "UserAvatars",
+              },
+              (error, result) => {
+                if (error) return reject(error);
+                resolve(result);
+              }
+            );
+            stream.pipe(uploadStream);
+          });
+
+          console.log("File uploaded successfully:", uploadResponse.secure_url);
+          updateFields.avatar = uploadResponse.secure_url;
+        } catch (error) {
+          console.error("Error during file upload:", error);
+          return res.status(500).json({
+            code: "Error-02-0004",
+            status: "Error",
+            message: "Failed to upload image",
+          });
+        }
+      } else {
+        console.log("No file uploaded. Skipping image upload.");
       }
+
+      console.log("Update fields:", updateFields);
 
       const updateResponse = await User.updateOne(
         { userId },
         { $set: updateFields }
       );
 
+      console.log("Update response:", updateResponse);
+
+      if (!updateResponse.modifiedCount) {
+        return res.status(400).json({
+          code: "Error-02-0006",
+          status: "Error",
+          message: "No changes were made to the user",
+        });
+      }
+
       return res.status(200).json({
-        code: "Success-01-0001",
+        code: "Success-02-0001",
         status: "Success",
         message: "User updated successfully",
-        data: updateResponse,
       });
     } catch (error) {
       console.error("Error updating user:", error);
       return res.status(500).json({
-        code: "Error-01-0003",
+        code: "Error-02-0005",
         status: "Error",
         message: "Failed to update user",
       });

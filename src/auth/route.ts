@@ -31,6 +31,13 @@ const transporter = nodemailer.createTransport({
  *         application/json:
  *           schema:
  *             type: object
+ *             required:
+ *               - name
+ *               - email
+ *               - phonenumber
+ *               - idcard
+ *               - company
+ *               - password
  *             properties:
  *               name:
  *                 type: string
@@ -49,30 +56,34 @@ const transporter = nodemailer.createTransport({
  *         description: User registered successfully.
  *       400:
  *         description: Email, phone number, or ID card already in use.
+ *       401:
+ *         description: Invalid Header.
  *       500:
  *         description: Internal server error.
  */
 
 // Register Route
 auth.post("/register", async (req: Request, res: Response) => {
-  // const contentType = req.headers["content-type"];
+  const contentType = req.headers["content-type"];
 
-  // if (!contentType || contentType !== "application/json") {
-  //   return res.status(401).json({
-  //     code: "Error-01-0001",
-  //     status: "Error",
-  //     message: "Invalid Header",
-  //   });
-  // }
   console.log(req.headers);
   console.log(req.body);
+
+  if (!contentType || contentType !== "application/json") {
+    return res.status(401).json({
+      code: "Error-01-0001",
+      status: "Error",
+      message: "Invalid Header",
+    });
+  }
+
   const { name, email, phonenumber, idcard, company, password } = req.body;
 
   if (!name || !email || !phonenumber || !idcard || !company || !password) {
-    return res.status(401).json({
-      code: "Error-01-0002",
+    return res.status(400).json({
+      code: "Error-02-0001",
       status: "Error",
-      message: "Missing required field.",
+      message: "Missing required fields.",
     });
   }
 
@@ -144,6 +155,9 @@ auth.post("/register", async (req: Request, res: Response) => {
  *         application/json:
  *           schema:
  *             type: object
+ *             required:
+ *               - email
+ *               - password
  *             properties:
  *               email:
  *                 type: string
@@ -154,6 +168,8 @@ auth.post("/register", async (req: Request, res: Response) => {
  *         description: Login successful.
  *       400:
  *         description: Invalid email or password.
+ *       401:
+ *         description: Invalid Header.
  *       500:
  *         description: Internal server error.
  */
@@ -177,7 +193,7 @@ auth.post("/login", async (req: Request, res: Response) => {
 
   if (!email || !password) {
     return res.status(401).json({
-      code: "Error-01-0002",
+      code: "Error-02-0001",
       status: "Error",
       message: "Missing required field.",
     });
@@ -188,18 +204,18 @@ auth.post("/login", async (req: Request, res: Response) => {
 
     if (!user) {
       return res.status(400).json({
-        code: "Error-01-0002",
+        code: "Error-02-0003",
         status: "Error",
-        message: "User not found.",
+        message: "User not found. ",
       });
     }
 
     const isPasswordValid = await bcrypt.compare(password, user.password);
     if (!isPasswordValid) {
       return res.status(400).json({
-        code: "Error-01-0002",
+        code: "Error-02-0004",
         status: "Error",
-        message: "Invalid Password.",
+        message: "Invalid password. Please try again.",
       });
     }
 
@@ -219,7 +235,7 @@ auth.post("/login", async (req: Request, res: Response) => {
     });
 
     res.status(200).json({
-      code: "Success-01-0001",
+      code: "Success-01-0002",
       status: "Success",
       message: "Login successful",
     });
@@ -239,43 +255,29 @@ auth.post("/login", async (req: Request, res: Response) => {
  *   post:
  *     summary: User logout
  *     tags: [Auth]
+ *     security:
+ *       - bearerAuth: []
  *     responses:
  *       200:
  *         description: Logout successful.
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 code:
- *                   type: string
- *                   example: "Success-01-0001"
- *                 status:
- *                   type: string
- *                   example: "Success"
- *                 message:
- *                   type: string
- *                   example: "Logged out successfully"
+ *       400:
+ *         description: Invalid Header.
  *       500:
  *         description: Internal server error.
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 code:
- *                   type: string
- *                   example: "Error-01-0003"
- *                 status:
- *                   type: string
- *                   example: "Error"
- *                 message:
- *                   type: string
- *                   example: "Internal server error."
  */
 
 // Logout Route
 auth.post("/logout", verifyJWT, (req, res) => {
+  const contentType = req.headers["content-type"];
+  // Validate content type
+  if (!contentType || contentType !== "application/json") {
+    return res.status(400).json({
+      code: "Error-01-0001",
+      status: "Error",
+      message: "Invalid Headers",
+    });
+  }
+
   try {
     res.clearCookie("token", {
       secure: true,
@@ -283,7 +285,7 @@ auth.post("/logout", verifyJWT, (req, res) => {
     });
 
     res.status(200).json({
-      code: "Success-01-0001",
+      code: "Success-01-0003",
       status: "Success",
       message: "Logged out successfully",
     });
@@ -309,6 +311,8 @@ auth.post("/logout", verifyJWT, (req, res) => {
  *         application/json:
  *           schema:
  *             type: object
+ *             required:
+ *               - email
  *             properties:
  *               email:
  *                 type: string
@@ -317,14 +321,15 @@ auth.post("/logout", verifyJWT, (req, res) => {
  *         description: Password reset email sent.
  *       400:
  *         description: User not found.
+ *       401:
+ *         description: Invalid Header.
  *       500:
  *         description: Internal server error.
  */
 
 // Forgot Password Route
 auth.post("/forgot-password", async (req, res) => {
-  const headers: any = req.headers;
-  const contentType = headers["content-type"];
+  const contentType = req.headers["content-type"];
 
   // console.log(headers);
   // console.log(contentType);
@@ -341,9 +346,9 @@ auth.post("/forgot-password", async (req, res) => {
 
   if (!email) {
     return res.status(401).json({
-      code: "Error-01-0002",
+      code: "Error-02-0001",
       status: "Error",
-      message: "Invalid Body.",
+      message: "Missing required field: email.",
     });
   }
 
@@ -351,39 +356,37 @@ auth.post("/forgot-password", async (req, res) => {
     const user = await User.findOne({ email });
     if (!user) {
       return res.status(400).json({
-        code: "Error-01-0003",
+        code: "Error-02-0003",
         status: "Error",
-        message: "User not found",
+        message: "User not found. Please check your email.",
       });
     }
+
     const resetToken = jwt.sign(
       { userId: user.userId, email: user.email, role: user.role },
       process.env.JWT_SECRET!,
-      {
-        expiresIn: "1h",
-      }
+      { expiresIn: "1h" }
     );
 
     const resetUrl = `${process.env.FRONTEND_URL}/reset-password?token=${resetToken}`;
-    console.log("Reset URL generated:", resetUrl);
     await transporter.sendMail({
-      from: "sorayutchroenrit@gmail.com",
+      from: "noreply@example.com",
       to: email,
       subject: "Password Reset Request",
       text: `Click the following link to reset your password: ${resetUrl}`,
     });
 
     res.status(200).json({
-      code: "Success-01-0001",
+      code: "Success-01-0004",
       status: "Success",
-      message: "Password reset email sent",
+      message: "Password reset email sent.",
     });
   } catch (error) {
     console.error("Error in forgot-password route:", error);
     res.status(500).json({
-      code: "Error-01-0004",
+      code: "Error-01-0003",
       status: "Error",
-      message: "An error occurred",
+      message: "Internal server error during password reset.",
     });
   }
 });
@@ -400,6 +403,9 @@ auth.post("/forgot-password", async (req, res) => {
  *         application/json:
  *           schema:
  *             type: object
+ *             required:
+ *               - token
+ *               - newPassword
  *             properties:
  *               token:
  *                 type: string
@@ -410,6 +416,8 @@ auth.post("/forgot-password", async (req, res) => {
  *         description: Password reset successful.
  *       400:
  *         description: Invalid or expired token.
+ *       401:
+ *         description: Invalid Header.
  *       500:
  *         description: Internal server error.
  */
@@ -418,14 +426,11 @@ auth.post("/forgot-password", async (req, res) => {
 auth.post("/reset-password", async (req, res) => {
   const contentType = req.headers["content-type"];
 
-  // console.log(headers);
-  // console.log(contentType);
-
   if (!contentType || contentType !== "application/json") {
-    return res.status(401).json({
+    return res.status(400).json({
       code: "Error-01-0001",
       status: "Error",
-      message: "Invalid Header.",
+      message: "Invalid Header. Content-Type must be application/json.",
     });
   }
 
@@ -433,41 +438,49 @@ auth.post("/reset-password", async (req, res) => {
     const { token, newPassword } = req.body;
 
     if (!token || !newPassword) {
-      return res.status(401).json({
-        code: "Error-01-0002",
+      return res.status(400).json({
+        code: "Error-02-0001",
         status: "Error",
-        message: "Missing required field.",
+        message: "Missing required fields: token and newPassword.",
       });
     }
 
-    const decoded = jwt.verify(
-      token,
-      process.env.JWT_SECRET!
-    ) as jwt.JwtPayload;
-
-    const user = await User.findById(decoded.userId);
-    if (!user) {
+    let decoded;
+    try {
+      decoded = jwt.verify(token, process.env.JWT_SECRET!) as jwt.JwtPayload;
+    } catch (err) {
+      console.error("Token verification failed:", err);
       return res.status(400).json({
         code: "Error-01-0003",
         status: "Error",
-        message: "Invalid or expired token",
+        message: "Invalid or expired token. Please request a new reset link.",
+      });
+    }
+
+    const user = await User.findById(decoded.userId);
+    if (!user) {
+      return res.status(404).json({
+        code: "Error-02-0003",
+        status: "Error",
+        message: "User not found. The token may be invalid.",
       });
     }
 
     user.password = await bcrypt.hash(newPassword, 10);
     await user.save();
 
-    res.status(200).json({
+    return res.status(200).json({
       code: "Success-01-0003",
       status: "Success",
-      message: "Password reset successful",
+      message:
+        "Password reset successful. You can now log in with your new password.",
     });
   } catch (error) {
-    console.error("Error resetting password", error);
-    res.status(400).json({
+    console.error("Error resetting password:", error);
+    return res.status(500).json({
       code: "Error-01-0003",
       status: "Error",
-      message: "Invalid or expired token",
+      message: "Internal server error. Please try again later.",
     });
   }
 });

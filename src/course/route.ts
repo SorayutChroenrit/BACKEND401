@@ -27,7 +27,7 @@ interface MulterRequest extends Request {
 
 /**
  * @swagger
- * /courses:
+ * /api/v1/courses:
  *   get:
  *     summary: Retrieve all courses
  *     tags: [Courses]
@@ -43,7 +43,7 @@ interface MulterRequest extends Request {
  *               properties:
  *                 code:
  *                   type: string
- *                   example: "Success-00-0002"
+ *                   example: "Success-00-0001"
  *                 status:
  *                   type: string
  *                   example: "Success"
@@ -55,72 +55,28 @@ interface MulterRequest extends Request {
  *                   items:
  *                     type: object
  *                     properties:
- *                       id:
+ *                       courseId:
  *                         type: string
  *                         example: "1234abcd"
  *                       courseName:
  *                         type: string
  *                         example: "Introduction to Programming"
- *                       courseCode:
- *                         type: string
- *                         example: "CS101"
- *                       description:
- *                         type: string
- *                         example: "A beginner's course in programming"
  *                       location:
  *                         type: string
  *                         example: "Online"
  *                       enrollmentLimit:
  *                         type: integer
  *                         example: 50
- *                       courseTag:
- *                         type: array
- *                         items:
- *                           type: string
- *                         example: ["new course", "programming"]
- *                       courseDate:
- *                         type: string
- *                         format: date-time
- *                         example: "2024-01-01T00:00:00Z"
- *                       applicationPeriod:
- *                         type: object
- *                         properties:
- *                           startDate:
- *                             type: string
- *                             format: date
- *                             example: "2023-12-01"
- *                           endDate:
- *                             type: string
- *                             format: date
- *                             example: "2023-12-31"
  *                       imageUrl:
  *                         type: string
  *                         example: "https://example.com/image.png"
  *       500:
  *         description: Internal server error.
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 code:
- *                   type: string
- *                   example: "Error-00-0001"
- *                 status:
- *                   type: string
- *                   example: "Error"
- *                 message:
- *                   type: string
- *                   example: "Internal server error."
  */
 
-// Get all courses
 course.get("/courses", verifyJWT, async (req: Request, res: Response) => {
   try {
-    // Fetch all courses from the database
     const courses = await Course.find();
-
-    // Send a successful response
     res.status(200).json({
       code: "Success-00-0001",
       status: "Success",
@@ -129,49 +85,85 @@ course.get("/courses", verifyJWT, async (req: Request, res: Response) => {
     });
   } catch (error) {
     console.error("Error retrieving courses:", error);
-
-    // Send an error response
     res.status(500).json({
       code: "Error-00-0001",
       status: "Error",
-      message: "Internal server error.",
+      message: "Internal server error while fetching courses",
     });
   }
 });
 
-// find course by id
-course.get(
-  "/courses/:courseId",
-  verifyJWT,
-  async (req: Request, res: Response) => {
-    try {
-      const { courseId } = req.params;
-      // console.log("Fetching courseId:", courseId);
-      const course = await Course.findOne({ courseId });
-
-      if (!course) {
-        return res.status(404).json({
-          code: "Error-01-0007",
-          status: "Error",
-          message: "Course not found",
-        });
-      }
-
-      res.status(200).json({
-        code: "Success-00-0001",
-        status: "Success",
-        message: "Course retrieved successfully",
-        data: course,
-      });
-    } catch (error) {
-      return res.status(500).json({
-        code: "Error-01-0006",
-        status: "Error",
-        message: "Failed to retrieve course",
-      });
-    }
-  }
-);
+/**
+ * @swagger
+ * /api/v1/createCourse:
+ *   post:
+ *     summary: Create a new course
+ *     tags: [Courses]
+ *     security:
+ *       - bearerAuth: []  # Indicates the need for a JWT token
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         multipart/form-data:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               courseName:
+ *                 type: string
+ *                 example: "Introduction to Programming"
+ *               courseCode:
+ *                 type: string
+ *                 example: "CS101"
+ *               description:
+ *                 type: string
+ *                 example: "A beginner's course in programming"
+ *               location:
+ *                 type: string
+ *                 example: "Online"
+ *               enrollmentLimit:
+ *                 type: integer
+ *                 example: 50
+ *               price:
+ *                 type: number
+ *                 example: 99.99
+ *               courseTag:
+ *                 type: string
+ *                 example: '["new", "programming"]'
+ *               hours:
+ *                 type: integer
+ *                 example: 3
+ *               courseDate:
+ *                 type: string
+ *                 format: date
+ *                 example: "2024-01-01"
+ *               applicationPeriod:
+ *                 type: string
+ *                 example: '{"from":"2024-01-01", "to":"2024-01-15"}'
+ *               courseImage:
+ *                 type: string
+ *                 format: binary
+ *     responses:
+ *       200:
+ *         description: Course created successfully.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 code:
+ *                   type: string
+ *                   example: "Success-00-0001"
+ *                 status:
+ *                   type: string
+ *                   example: "Success"
+ *                 message:
+ *                   type: string
+ *                   example: "Course created successfully"
+ *       400:
+ *         description: Invalid input or missing required fields.
+ *       500:
+ *         description: Internal server error.
+ */
 
 // create new course
 course.post(
@@ -182,14 +174,14 @@ course.post(
     const contentType = req.headers["content-type"];
 
     console.log(req.headers);
-    // // Check for valid content type
-    // if (!contentType || contentType !== "multipart/form-data") {
-    //   return res.status(400).json({
-    //     code: "Error-01-0001",
-    //     status: "Error",
-    //     message: "Invalid Headers",
-    //   });
-    // }
+    // Check for valid content type
+    if (!contentType || !contentType.includes("multipart/form-data")) {
+      return res.status(400).json({
+        code: "Error-01-0001",
+        status: "Error",
+        message: "Invalid Headers",
+      });
+    }
 
     const {
       courseName,
@@ -330,6 +322,7 @@ course.post(
           location,
           enrollmentLimit: enrollmentLimitNumber.toString(),
           courseDate,
+          hours,
         },
       });
 
@@ -369,7 +362,6 @@ course.post(
         code: "Success-00-0001",
         status: "Success",
         message: "Course created successfully",
-        data: { imageUrl: uploadResponse.secure_url, stripeProduct },
       };
 
       return res.status(200).json(response);
@@ -383,6 +375,49 @@ course.post(
     }
   }
 );
+
+/**
+ * @swagger
+ * /api/v1/verify-id:
+ *   post:
+ *     summary: Verify user ID card
+ *     tags: [Courses]
+ *     security:
+ *       - bearerAuth: []  # Indicates the need for a JWT token
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               idcard:
+ *                 type: string
+ *                 example: "1234567890123"
+ *     responses:
+ *       200:
+ *         description: ID card verified successfully.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 code:
+ *                   type: string
+ *                   example: "Success-01-0001"
+ *                 status:
+ *                   type: string
+ *                   example: "Success"
+ *                 message:
+ *                   type: string
+ *                   example: "ID card verified successfully"
+ *       400:
+ *         description: Missing or invalid ID card field.
+ *       404:
+ *         description: ID card not found.
+ *       500:
+ *         description: Internal server error.
+ */
 
 course.post("/verify-id", verifyJWT, async (req: Request, res: Response) => {
   const contentType = req.headers["content-type"];
@@ -433,10 +468,68 @@ course.post("/verify-id", verifyJWT, async (req: Request, res: Response) => {
   }
 });
 
+/**
+ * @swagger
+ * /api/v1/course/updateCourse:
+ *   post:
+ *     summary: Update course details
+ *     tags: [Courses]
+ *     security:
+ *       - bearerAuth: []  # Indicates the need for a JWT token
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         multipart/form-data:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               courseId:
+ *                 type: string
+ *                 example: "1234abcd"
+ *               courseTag:
+ *                 type: string
+ *                 example: '["programming", "advanced"]'
+ *               applicationPeriod:
+ *                 type: string
+ *                 example: '{"from":"2024-02-01", "to":"2024-02-15"}'
+ *               courseImage:
+ *                 type: string
+ *                 format: binary
+ *     responses:
+ *       200:
+ *         description: Course updated successfully.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 code:
+ *                   type: string
+ *                   example: "Success-01-0001"
+ *                 status:
+ *                   type: string
+ *                   example: "Success"
+ *                 message:
+ *                   type: string
+ *                   example: "Course updated successfully"
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     nModified:
+ *                       type: integer
+ *                       example: 1
+ *       400:
+ *         description: Missing or invalid input.
+ *       404:
+ *         description: Course not found.
+ *       500:
+ *         description: Internal server error.
+ */
+
 course.post(
   "/course/updateCourse",
   verifyJWT,
-  upload.single("courseImage"), // Handle file upload
+  upload.single("courseImage"),
   async (req: Request, res: Response) => {
     const contentType = req.headers["content-type"];
 
@@ -449,26 +542,11 @@ course.post(
       });
     }
 
-    // console.log("Headers:", req.headers);
-    // console.log("Body:", req.body);
-    // console.log("File:", req.file);
-
-    const { courseId, courseTag, ...updateFields } = req.body;
-
-    let parsedCourseTag = [];
-    if (courseTag) {
-      try {
-        parsedCourseTag = JSON.parse(courseTag);
-      } catch (error) {
-        return res.status(400).json({
-          code: "Error-01-0005",
-          status: "Error",
-          message: "Invalid courseTag format",
-        });
-      }
-    }
-
     try {
+      // Destructure and parse the body
+      const { courseId, courseTag, applicationPeriod, ...updateFields } =
+        req.body;
+
       // Validate `courseId`
       if (!courseId) {
         return res.status(400).json({
@@ -478,7 +556,57 @@ course.post(
         });
       }
 
-      // Update course in the database
+      // Parse and validate `courseTag`
+      let parsedCourseTag = [];
+      if (courseTag) {
+        try {
+          parsedCourseTag = JSON.parse(courseTag);
+        } catch (error) {
+          return res.status(400).json({
+            code: "Error-01-0005",
+            status: "Error",
+            message: "Invalid courseTag format",
+          });
+        }
+        updateFields.courseTag = parsedCourseTag;
+      }
+
+      // Parse and validate `applicationPeriod`
+      if (applicationPeriod) {
+        let parsedApplicationPeriod;
+        try {
+          parsedApplicationPeriod =
+            typeof applicationPeriod === "string"
+              ? JSON.parse(applicationPeriod)
+              : applicationPeriod;
+
+          const { from, to } = parsedApplicationPeriod || {};
+
+          if (!from || !to) {
+            return res.status(400).json({
+              code: "Error-01-0006",
+              status: "Error",
+              message:
+                "Both startDate and endDate are required in applicationPeriod",
+            });
+          }
+
+          const startDate = new Date(from);
+          const endDate = new Date(to);
+
+          parsedApplicationPeriod = { startDate, endDate };
+          // Add to updateFields only if valid
+          updateFields.applicationPeriod = parsedApplicationPeriod;
+        } catch (error) {
+          return res.status(400).json({
+            code: "Error-01-0007",
+            status: "Error",
+            message: "Invalid applicationPeriod format",
+          });
+        }
+      }
+
+      // Find the course in the database
       const course = await Course.findOne({ courseId });
       if (!course) {
         return res.status(404).json({
@@ -490,9 +618,10 @@ course.post(
 
       // If an image is uploaded, handle it (e.g., upload to Cloudinary)
       if (req.file) {
-        updateFields.imageUrl = req.file.path; // Adjust based on your storage solution
+        updateFields.imageUrl = req.file.path;
       }
 
+      // Update the course
       const updateResponse = await Course.updateOne(
         { courseId },
         { $set: updateFields }
@@ -514,6 +643,55 @@ course.post(
     }
   }
 );
+
+/**
+ * @swagger
+ * /api/v1/generateCode:
+ *   post:
+ *     summary: Generate a course code for a specific course
+ *     tags: [Courses]
+ *     security:
+ *       - bearerAuth: []  # Indicates the need for a JWT token
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               courseId:
+ *                 type: string
+ *                 example: "1234abcd"
+ *     responses:
+ *       200:
+ *         description: Code generated and saved successfully.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 code:
+ *                   type: string
+ *                   example: "Success-01-0002"
+ *                 status:
+ *                   type: string
+ *                   example: "Success"
+ *                 message:
+ *                   type: string
+ *                   example: "Code generated and saved successfully."
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     generatedCode:
+ *                       type: string
+ *                       example: "5678"
+ *       400:
+ *         description: Invalid input or code generation failed.
+ *       404:
+ *         description: Course not found.
+ *       500:
+ *         description: Internal server error.
+ */
 
 course.post("/generateCode", verifyJWT, async (req: Request, res: Response) => {
   const { courseId } = req.body;
@@ -622,21 +800,65 @@ course.post("/generateCode", verifyJWT, async (req: Request, res: Response) => {
   }
 });
 
+/**
+ * @swagger
+ * /api/v1/validateCode:
+ *   post:
+ *     summary: Validate a generated course code
+ *     tags: [Courses]
+ *     security:
+ *       - bearerAuth: []  # Indicates the need for a JWT token
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               enteredCode:
+ *                 type: string
+ *                 example: "5678"
+ *     responses:
+ *       200:
+ *         description: Code is valid and waiting for admin approval.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 code:
+ *                   type: string
+ *                   example: "Success-02-0001"
+ *                 status:
+ *                   type: string
+ *                   example: "Success"
+ *                 message:
+ *                   type: string
+ *                   example: "Code is valid waiting admin to approve."
+ *       400:
+ *         description: Invalid code or user not registered for the course.
+ *       404:
+ *         description: Course not found.
+ *       500:
+ *         description: Internal server error.
+ */
+
 course.post("/validateCode", verifyJWT, async (req: Request, res: Response) => {
-  const { courseId, enteredCode } = req.body;
+  const { enteredCode } = req.body;
+
   const user = req.user;
+
   try {
     // Validate input
-    if (!courseId || !enteredCode) {
+    if (!enteredCode) {
       return res.status(400).json({
         code: "Error-02-0001",
         status: "Error",
-        message: "Course ID and entered code are required.",
+        message: "Code are required.",
       });
     }
-
     // Find the course
-    const course = await Course.findOne({ courseId });
+    const course = await Course.findOne({ generatedCode: enteredCode });
     if (!course) {
       return res.status(404).json({
         code: "Error-02-0002",
@@ -645,7 +867,7 @@ course.post("/validateCode", verifyJWT, async (req: Request, res: Response) => {
       });
     }
 
-    const { generatedCode, courseDate, hours } = course;
+    const { generatedCode, courseDate, hours, registeredUsers } = course;
 
     // Validate the entered code
     if (enteredCode !== generatedCode) {
@@ -653,6 +875,20 @@ course.post("/validateCode", verifyJWT, async (req: Request, res: Response) => {
         code: "Error-02-0003",
         status: "Error",
         message: "Invalid code entered.",
+      });
+    }
+
+    // Check if the user is registered for the course
+    const isUserRegistered = registeredUsers.some(
+      (registeredUser: { userId: string }) =>
+        registeredUser.userId === user.userId
+    );
+
+    if (!isUserRegistered) {
+      return res.status(400).json({
+        code: "Error-02-0007",
+        status: "Error",
+        message: "You are not registered for this course.",
       });
     }
 
@@ -692,7 +928,7 @@ course.post("/validateCode", verifyJWT, async (req: Request, res: Response) => {
 
     course.waitingForApproveList.push({
       userId: user.userId,
-      name: user.email,
+      email: user.email,
       timestamp: new Date().toISOString(),
     });
 
@@ -713,12 +949,69 @@ course.post("/validateCode", verifyJWT, async (req: Request, res: Response) => {
   }
 });
 
-course.get("/waitingList", async (req: Request, res: Response) => {
+/**
+ * @swagger
+ * /api/v1/waitingList:
+ *   get:
+ *     summary: Retrieve the waiting list for courses
+ *     tags: [Courses]
+ *     security:
+ *       - bearerAuth: []  # Indicates the need for a JWT token
+ *     responses:
+ *       200:
+ *         description: Waiting list retrieved successfully.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 code:
+ *                   type: string
+ *                   example: "Success-03-0001"
+ *                 status:
+ *                   type: string
+ *                   example: "Success"
+ *                 message:
+ *                   type: string
+ *                   example: "Waiting list retrieved successfully."
+ *                 data:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       courseId:
+ *                         type: string
+ *                         example: "1234abcd"
+ *                       courseName:
+ *                         type: string
+ *                         example: "Introduction to Programming"
+ *                       waitingForApproveList:
+ *                         type: array
+ *                         items:
+ *                           type: object
+ *                           properties:
+ *                             userId:
+ *                               type: string
+ *                               example: "user123"
+ *                             email:
+ *                               type: string
+ *                               example: "user@example.com"
+ *                             timestamp:
+ *                               type: string
+ *                               format: date-time
+ *                               example: "2024-01-01T12:00:00Z"
+ *       404:
+ *         description: No courses found with a waiting list.
+ *       500:
+ *         description: Internal server error.
+ */
+
+course.get("/waitingList", verifyJWT, async (req: Request, res: Response) => {
   try {
     // Fetch courses with their waitingForApproveList
     const courses = await Course.find(
       { waitingForApproveList: { $exists: true, $ne: [] } }, // Find courses with non-empty waitingForApproveList
-      { courseId: 1, courseName: 1, waitingForApproveList: 1 } // Project required fields
+      { courseId: 1, courseName: 1, waitingForApproveList: 1 } // only this 3  fields
     );
     // console.log(courses);
 
@@ -746,7 +1039,63 @@ course.get("/waitingList", async (req: Request, res: Response) => {
   }
 });
 
-course.post("/action", async (req, res) => {
+/**
+ * @swagger
+ * /api/v1/action:
+ *   post:
+ *     summary: Approve or reject a user from the waiting list
+ *     tags: [Courses]
+ *     security:
+ *       - bearerAuth: []  # Indicates the need for a JWT token
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               userId:
+ *                 type: string
+ *                 example: "user123"
+ *               courseId:
+ *                 type: string
+ *                 example: "1234abcd"
+ *               action:
+ *                 type: string
+ *                 enum: [approve, reject]
+ *                 example: "approve"
+ *     responses:
+ *       200:
+ *         description: User action processed successfully.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 code:
+ *                   type: string
+ *                   example: "Success-03-0002"
+ *                 status:
+ *                   type: string
+ *                   example: "Success"
+ *                 message:
+ *                   type: string
+ *                   example: "User approved successfully."
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     userId:
+ *                       type: string
+ *                       example: "user123"
+ *       400:
+ *         description: Invalid input or action.
+ *       404:
+ *         description: User or course not found.
+ *       500:
+ *         description: Internal server error.
+ */
+
+course.post("/action", verifyJWT, async (req, res) => {
   const { userId, courseId, action } = req.body;
 
   console.log(courseId);
@@ -817,13 +1166,14 @@ course.post("/action", async (req, res) => {
 
       if (!courseExists) {
         user.trainingInfo.push({
+          _id: course._id,
           courseId: courseId,
           courseName: course.courseName,
           description: course.description,
           location: course.location,
+          hours: course.hours,
           courseImage: course.courseImage,
           courseDate: course.courseDate,
-          _id: course._id,
         });
       }
 

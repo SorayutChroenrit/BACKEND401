@@ -28,57 +28,175 @@ interface MulterRequest extends Request {
   file?: Express.Multer.File;
 }
 
-// get all courses
-carousel.get("/carousels", async (req: Request, res: Response) => {
-  const carousel = await Carousel.find();
+/**
+ * @swagger
+ * /api/v1/carousels:
+ *   get:
+ *     summary: Retrieve all carousels
+ *     tags: [Carousel]
+ *     responses:
+ *       200:
+ *         description: Carousels retrieved successfully.
+ *         content:
+ *           multipart/form-data:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 code:
+ *                   type: string
+ *                   example: Success-00-0002
+ *                 status:
+ *                   type: string
+ *                   example: Success
+ *                 message:
+ *                   type: string
+ *                   example: Carousels retrieved successfully.
+ *                 data:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       carouselId:
+ *                         type: string
+ *                       carouselImageUrl:
+ *                         type: string
+ *       500:
+ *         description: Failed to retrieve carousels.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 code:
+ *                   type: string
+ *                   example: Error-01-0004
+ *                 status:
+ *                   type: string
+ *                   example: Error
+ *                 message:
+ *                   type: string
+ *                   example: Failed to retrieve carousels.
+ */
 
-  // Send a successful response
-  const response = {
-    code: "Success-00-0002",
-    status: "Success",
-    message: "Courses retrieved successfully",
-    data: carousel,
-  };
-  res.status(200).json(response);
+// Get all carousels
+carousel.get("/carousels", async (req: Request, res: Response) => {
+  try {
+    const carousels = await Carousel.find();
+
+    const response: ResponseObject = {
+      code: "Success-00-0002",
+      status: "Success",
+      message: "Carousels retrieved successfully.",
+      data: carousels,
+    };
+    return res.status(200).json(response);
+  } catch (error) {
+    console.error("Error retrieving carousels:", error);
+    return res.status(500).json({
+      code: "Error-01-0004",
+      status: "Error",
+      message: "Failed to retrieve carousels.",
+    });
+  }
 });
 
-// create new course
+/**
+ * @swagger
+ * /api/v1/createCarousel:
+ *   post:
+ *     summary: Create a new carousel
+ *     tags: [Carousel]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         multipart/form-data:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               carouselImage:
+ *                 type: string
+ *                 format: binary
+ *     responses:
+ *       200:
+ *         description: Carousel created successfully.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 code:
+ *                   type: string
+ *                   example: Success-00-0001
+ *                 status:
+ *                   type: string
+ *                   example: Success
+ *                 message:
+ *                   type: string
+ *                   example: Carousel created successfully.
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     imageUrl:
+ *                       type: string
+ *       400:
+ *         description: Missing required image file.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 code:
+ *                   type: string
+ *                   example: Error-01-0002
+ *                 status:
+ *                   type: string
+ *                   example: Error
+ *                 message:
+ *                   type: string
+ *                   example: Missing required image file.
+ *       500:
+ *         description: Failed to upload image to Cloudinary.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 code:
+ *                   type: string
+ *                   example: Error-01-0005
+ *                 status:
+ *                   type: string
+ *                   example: Error
+ *                 message:
+ *                   type: string
+ *                   example: Failed to upload image to Cloudinary.
+ */
+
+// Create new carousel
 carousel.post(
   "/createCarousel",
-  upload.single("courseImage"),
+  upload.single("carouselImage"),
+  verifyJWT,
   async (req: MulterRequest, res: Response) => {
-    const {
-      courseName,
-      courseCode,
-      description,
-      location,
-      enrollmentLimit,
-      price,
-      courseTag,
-      courseDate,
-      applicationPeriod,
-    } = req.body;
+    const contentType = req.headers["content-type"];
+
+    // Check for valid content type
+    if (!contentType || !contentType.includes("multipart/form-data")) {
+      return res.status(400).json({
+        code: "Error-01-0001",
+        status: "Error",
+        message: "Invalid Headers",
+      });
+    }
 
     const file = req.file;
-
     if (!file) {
       return res.status(400).json({
         code: "Error-01-0002",
         status: "Error",
-        message: "Missing required image file",
-      });
-    }
-
-    const enrollmentLimitNumber = Number(enrollmentLimit);
-    if (
-      isNaN(enrollmentLimitNumber) ||
-      enrollmentLimitNumber < 1 ||
-      enrollmentLimitNumber > 99
-    ) {
-      return res.status(400).json({
-        code: "Error-01-0004",
-        status: "Error",
-        message: "Enrollment limit must be a valid number between 1 and 99",
+        message: "Missing required image file.",
       });
     }
 
@@ -88,7 +206,7 @@ carousel.post(
         const uploadStream = cloudinary.v2.uploader.upload_stream(
           {
             resource_type: "image",
-            public_id: courseName.replace(/\s+/g, "_"),
+            public_id: `carousel_${Date.now()}`,
             folder: "CarouselImage",
           },
           (error, result) => {
@@ -99,76 +217,31 @@ carousel.post(
           }
         );
 
-        // Pipe the stream to the upload stream
         stream.pipe(uploadStream);
       });
 
-      // Create course
-      const courseId = uuidv4();
-      const courseData = {
-        courseId,
-        courseName,
-        courseCode,
-        description,
-        location,
-        enrollmentLimit: enrollmentLimitNumber,
-        price,
-        courseTag,
-        courseDate,
-        applicationPeriod,
-        imageUrl: uploadResponse.secure_url,
-        createDate: new Date(),
+      const carouselId = uuidv4();
+      const carouselData = {
+        carouselId,
+        carouselImageUrl: uploadResponse.secure_url,
       };
 
-      await Carousel.collection.insertOne(courseData);
+      await Carousel.collection.insertOne(carouselData);
 
       const response: ResponseObject = {
-        code: "Success-00-0001",
+        code: "Success-01-0001",
         status: "Success",
-        message: "Course created successfully",
-        data: { imageUrl: uploadResponse.secure_url },
+        message: "Carousel created successfully.",
+        // data: { imageUrl: uploadResponse.secure_url },
       };
-
       return res.status(200).json(response);
     } catch (error) {
       console.error("Error uploading image to Cloudinary:", error);
       return res.status(500).json({
         code: "Error-01-0005",
         status: "Error",
-        message: "Failed to upload image to Cloudinary",
+        message: "Failed to upload image to Cloudinary.",
       });
     }
   }
 );
-
-// delete course by id
-carousel.delete("course/:courseId", async (req: Request, res: Response) => {
-  const { carouselId } = req.params;
-
-  try {
-    const deletedCourse = await Carousel.findOneAndDelete({ carouselId });
-
-    if (!deletedCourse) {
-      return res.status(404).json({
-        code: "Error-01-0008",
-        status: "Error",
-        message: "Course not found",
-      });
-    }
-
-    const response: ResponseObject = {
-      code: "Success-00-0003",
-      status: "Success",
-      message: "Course deleted successfully",
-    };
-
-    return res.status(200).json(response);
-  } catch (error) {
-    console.error("Error deleting course from MongoDB:", error);
-    return res.status(500).json({
-      code: "Error-01-0009",
-      status: "Error",
-      message: "Failed to delete course",
-    });
-  }
-});
