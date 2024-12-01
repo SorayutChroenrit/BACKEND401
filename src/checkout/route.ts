@@ -1,10 +1,11 @@
 import express from "express";
+import { verifyJWT } from "../../middleware/middleware";
 
 export const checkout = express.Router();
 const stripe = require("stripe")(process.env.STRIPE_API_KEY);
 const FRONTEND_URL = process.env.FRONTEND_URL;
 
-checkout.post("/create-checkout-session", async (req, res) => {
+checkout.post("/create-checkout-session", verifyJWT, async (req, res) => {
   const { stripePriceId, metadata } = req.body;
 
   if (!stripePriceId || !metadata || !metadata.userId || !metadata.courseId) {

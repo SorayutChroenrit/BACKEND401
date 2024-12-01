@@ -376,9 +376,19 @@ user.post(
     // Log headers to confirm content type
     console.log("Headers:", req.headers);
 
-    // Log body and file to inspect incoming data
-    console.log("Body:", req.body);
-    console.log("File:", req.file);
+    const contentType = req.headers["content-type"];
+
+    if (!contentType || !contentType.includes("multipart/form-data")) {
+      return res.status(400).json({
+        code: "Error-01-0001",
+        status: "Error",
+        message: "Invalid Headers",
+      });
+    }
+
+    // Log body and file
+    // console.log("Body:", req.body);
+    // console.log("File:", req.file);
 
     try {
       const { userId, ...updateFields } = req.body;

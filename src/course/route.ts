@@ -27,12 +27,28 @@ interface MulterRequest extends Request {
 
 /**
  * @swagger
+ * components:
+ *   securitySchemes:
+ *     bearerAuth:
+ *       type: http
+ *       scheme: bearer
+ *       bearerFormat: JWT
+ *       description: Provide the JWT token as "Bearer <token>".
+ *
  * /api/v1/courses:
  *   get:
  *     summary: Retrieve all courses
  *     tags: [Courses]
  *     security:
  *       - bearerAuth: []  # Indicates the need for a JWT token
+ *     parameters:
+ *       - in: header
+ *         name: Authorization
+ *         required: true
+ *         schema:
+ *           type: string
+ *         example: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiI1NTNlZTk2My0xZTI2LTRiZGEtOGM1ZS03OGU5Y2FkOWQwZDAiLCJlbWFpbCI6Imx1Y2FzLmZvc3RlckBleGFtcGxlLmNvbSIsInJvbGUiOiJhZG1pbiIsImlhdCI6MTczMjk5MDYwMCwiZXhwIjoxNzMyOTk3ODAwfQ.X-nJCn8-2SHXa14616nnOP6kpn4L6h-CMsHrcQbzwB8
+ *         description: The JWT token for authentication, formatted as "Bearer <token>".
  *     responses:
  *       200:
  *         description: Courses retrieved successfully.
@@ -43,7 +59,7 @@ interface MulterRequest extends Request {
  *               properties:
  *                 code:
  *                   type: string
- *                   example: "Success-00-0001"
+ *                   example: "Success-01-0001"
  *                 status:
  *                   type: string
  *                   example: "Success"
@@ -70,11 +86,41 @@ interface MulterRequest extends Request {
  *                       imageUrl:
  *                         type: string
  *                         example: "https://example.com/image.png"
+ *       401:
+ *         description: Unauthorized. Missing or invalid JWT token.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 code:
+ *                   type: string
+ *                   example: "Error-01-0001"
+ *                 status:
+ *                   type: string
+ *                   example: "Error"
+ *                 message:
+ *                   type: string
+ *                   example: "Authorization header is missing or invalid."
  *       500:
  *         description: Internal server error.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 code:
+ *                   type: string
+ *                   example: "Error-03-0001"
+ *                 status:
+ *                   type: string
+ *                   example: "Error"
+ *                 message:
+ *                   type: string
+ *                   example: "Internal server error while fetching courses."
  */
 
-course.get("/courses", verifyJWT, async (req: Request, res: Response) => {
+course.get("/auth/courses", verifyJWT, async (req: Request, res: Response) => {
   try {
     const courses = await Course.find();
     res.status(200).json({
@@ -211,7 +257,7 @@ course.post(
 
     const contentType = req.headers["content-type"];
 
-    // Check for valid content type
+    // Check content type
     if (!contentType || !contentType.includes("multipart/form-data")) {
       return res.status(400).json({
         code: "Error-01-0001",
@@ -584,8 +630,7 @@ course.post(
   async (req: Request, res: Response) => {
     const contentType = req.headers["content-type"];
 
-    // Check for valid content type
-    if (!contentType || contentType !== "application/json") {
+    if (!contentType || !contentType.includes("multipart/form-data")) {
       return res.status(400).json({
         code: "Error-01-0001",
         status: "Error",
@@ -982,7 +1027,7 @@ course.post("/generateCode", verifyJWT, async (req: Request, res: Response) => {
     if (generatedCode && generatedCodeTimestamp) {
       const codeTimestamp = new Date(generatedCodeTimestamp);
 
-      // Ensure the `generatedCodeTimestamp` is within the current course period
+      
       if (codeTimestamp >= courseStartTime && codeTimestamp <= courseEndTime) {
         return res.status(400).json({
           code: "Error-01-0006",
